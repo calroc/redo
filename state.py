@@ -125,7 +125,7 @@ def relpath(t, base):
     base = os.path.normpath(base)
     tparts = t.split('/')
     bparts = base.split('/')
-    for tp,bp in zip(tparts,bparts):
+    for tp, bp in zip(tparts, bparts):
         if tp != bp:
             break
         tparts.pop(0)
@@ -171,7 +171,7 @@ class File(object):
                 # big deal.
                 pass
             row = d.execute(q, l).fetchone()
-            assert(row)
+            assert row
         return self._init_from_cols(row)
 
     def _init_from_cols(self, cols):
@@ -254,7 +254,7 @@ class File(object):
         for row in db().execute(q, [self.id]).fetchall():
             mode = row[0]
             cols = row[1:]
-            assert(mode in ('c', 'm'))
+            assert mode in ('c', 'm')
             yield mode,File(cols=cols)
 
     def zap_deps1(self):
@@ -268,7 +268,7 @@ class File(object):
     def add_dep(self, mode, dep):
         src = File(name=dep)
         debug3('add-dep: "%s" < %s "%s"\n' % (self.name, mode, src.name))
-        assert(self.id != src.id)
+        assert self.id != src.id
         _write("insert or replace into Deps "
                "    (target, mode, source, delete_me) values (?,?,?,?)",
                [self.id, mode, src.id, False])
@@ -307,7 +307,7 @@ class Lock:
         self.lockfile = os.open(os.path.join(vars_.BASE, '.redo/lock.%d' % fid),
                                 os.O_RDWR | os.O_CREAT, 0666)
         close_on_exec(self.lockfile, True)
-        assert(_locks.get(fid,0) == 0)
+        assert _locks.get(fid, 0) == 0
         _locks[fid] = 1
 
     def __del__(self):
@@ -317,7 +317,7 @@ class Lock:
         os.close(self.lockfile)
 
     def trylock(self):
-        assert(not self.owned)
+        assert not self.owned
         try:
             fcntl.lockf(self.lockfile, fcntl.LOCK_EX|fcntl.LOCK_NB, 0, 0)
         except IOError, e:
@@ -329,7 +329,7 @@ class Lock:
             self.owned = True
 
     def waitlock(self):
-        assert(not self.owned)
+        assert not self.owned
         fcntl.lockf(self.lockfile, fcntl.LOCK_EX, 0, 0)
         self.owned = True
             
