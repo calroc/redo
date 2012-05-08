@@ -1,5 +1,5 @@
 import sys, os, errno, glob, stat, fcntl, sqlite3
-import vars
+import vars_
 from helpers import unlink, close_on_exec, join
 from log import warn, err, debug2, debug3
 
@@ -25,7 +25,7 @@ def db():
     if _db:
         return _db
         
-    dbdir = '%s/.redo' % vars.BASE
+    dbdir = '%s/.redo' % vars_.BASE
     dbfile = '%s/db.sqlite3' % dbdir
     try:
         os.mkdir(dbdir)
@@ -76,11 +76,11 @@ def db():
                     "     ((select max(id)+1 from Runid))")
         _db.execute("insert into Files (name) values (?)", [ALWAYS])
 
-    if not vars.RUNID:
+    if not vars_.RUNID:
         _db.execute("insert into Runid values "
                     "     ((select max(id)+1 from Runid))")
-        vars.RUNID = _db.execute("select last_insert_rowid()").fetchone()[0]
-        os.environ['REDO_RUNID'] = str(vars.RUNID)
+        vars_.RUNID = _db.execute("select last_insert_rowid()").fetchone()[0]
+        os.environ['REDO_RUNID'] = str(vars_.RUNID)
     
     _db.commit()
     return _db
@@ -112,7 +112,7 @@ _insane = None
 def check_sane():
     global _insane, _writable
     if not _insane:
-        _insane = not os.path.exists('%s/.redo' % vars.BASE)
+        _insane = not os.path.exists('%s/.redo' % vars_.BASE)
     return not _insane
 
 
@@ -153,7 +153,7 @@ class File(object):
             q += 'where rowid=?'
             l = [id]
         elif name != None:
-            name = (name==ALWAYS) and ALWAYS or relpath(name, vars.BASE)
+            name = (name==ALWAYS) and ALWAYS or relpath(name, vars_.BASE)
             q += 'where name=?'
             l = [name]
         else:
@@ -178,8 +178,8 @@ class File(object):
         (self.id, self.name, self.is_generated, self.is_override,
          self.checked_runid, self.changed_runid, self.failed_runid,
          self.stamp, self.csum) = cols
-        if self.name == ALWAYS and self.changed_runid < vars.RUNID:
-            self.changed_runid = vars.RUNID
+        if self.name == ALWAYS and self.changed_runid < vars_.RUNID:
+            self.changed_runid = vars_.RUNID
     
     def __init__(self, id=None, name=None, cols=None):
         if cols:
@@ -201,7 +201,7 @@ class File(object):
                 self.id])
 
     def set_checked(self):
-        self.checked_runid = vars.RUNID
+        self.checked_runid = vars_.RUNID
 
     def set_checked_save(self):
         self.set_checked()
@@ -209,14 +209,14 @@ class File(object):
 
     def set_changed(self):
         debug2('BUILT: %r (%r)\n' % (self.name, self.stamp))
-        self.changed_runid = vars.RUNID
+        self.changed_runid = vars_.RUNID
         self.failed_runid = None
         self.is_override = False
 
     def set_failed(self):
         debug2('FAILED: %r\n' % self.name)
         self.update_stamp()
-        self.failed_runid = vars.RUNID
+        self.failed_runid = vars_.RUNID
         self.is_generated = True
 
     def set_static(self):
@@ -238,13 +238,13 @@ class File(object):
             self.set_changed()
 
     def is_checked(self):
-        return self.checked_runid and self.checked_runid >= vars.RUNID
+        return self.checked_runid and self.checked_runid >= vars_.RUNID
 
     def is_changed(self):
-        return self.changed_runid and self.changed_runid >= vars.RUNID
+        return self.changed_runid and self.changed_runid >= vars_.RUNID
 
     def is_failed(self):
-        return self.failed_runid and self.failed_runid >= vars.RUNID
+        return self.failed_runid and self.failed_runid >= vars_.RUNID
 
     def deps(self):
         q = ('select Deps.mode, Deps.source, %s '
@@ -275,7 +275,7 @@ class File(object):
 
     def read_stamp(self):
         try:
-            st = os.stat(os.path.join(vars.BASE, self.name))
+            st = os.stat(os.path.join(vars_.BASE, self.name))
         except OSError:
             return STAMP_MISSING
         if stat.S_ISDIR(st.st_mode):
@@ -285,7 +285,7 @@ class File(object):
             return str((st.st_ctime, st.st_mtime, st.st_size, st.st_ino))
 
     def nicename(self):
-        return relpath(os.path.join(vars.BASE, self.name), vars.STARTDIR)
+        return relpath(os.path.join(vars_.BASE, self.name), vars_.STARTDIR)
 
 
 def files():
@@ -304,7 +304,7 @@ class Lock:
     def __init__(self, fid):
         self.owned = False
         self.fid = fid
-        self.lockfile = os.open(os.path.join(vars.BASE, '.redo/lock.%d' % fid),
+        self.lockfile = os.open(os.path.join(vars_.BASE, '.redo/lock.%d' % fid),
                                 os.O_RDWR | os.O_CREAT, 0666)
         close_on_exec(self.lockfile, True)
         assert(_locks.get(fid,0) == 0)
