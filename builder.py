@@ -169,30 +169,6 @@ class BuildJob:
         state.commit()
         jwack.start_job(t, self._do_subproc, self._after)
 
-    def _start_unlocked(self, dirty):
-        # out-of-band redo of some sub-objects.  This happens when we're not
-        # quite sure if t needs to be built or not (because some children
-        # look dirty, but might turn out to be clean thanks to checksums). 
-        # We have to call redo-unlocked to figure it all out.
-        #
-        # Note: redo-unlocked will handle all the updating of sf, so we
-        # don't have to do it here, nor call _after1.  However, we have to
-        # hold onto the lock because otherwise we would introduce a race
-        # condition; that's why it's called redo-unlocked, because it doesn't
-        # grab a lock.
-        argv = ['redo-unlocked', self.sf.name] + [d.name for d in dirty]
-        log('(%s)\n' % _nice(self.t))
-        state.commit()
-        def run():
-            os.chdir(vars.BASE)
-            os.environ['REDO_DEPTH'] = vars.DEPTH + '  '
-            os.execvp(argv[0], argv)
-            assert(0)
-            # returns only if there's an exception
-        def after(t, rv):
-            return self._after2(rv)
-        jwack.start_job(self.t, run, after)
-
     def _do_subproc(self):
         # careful: REDO_PWD was the PWD relative to the STARTPATH at the time
         # we *started* building the current target; but that target ran
