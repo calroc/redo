@@ -1,5 +1,5 @@
 import sys, os, errno, glob, stat, fcntl, sqlite3
-import vars_
+import vars as vars_
 from helpers import unlink, close_on_exec, join
 from log import warn, err, debug2, debug3
 

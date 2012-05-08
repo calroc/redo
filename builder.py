@@ -6,10 +6,11 @@ from log import log, log_, debug, debug2, err, warn
 
 def _default_do_files(filename):
     l = filename.split('.')
-    for i in range(1,len(l)+1):
+    for i in range(1, len(l) + 1):
         basename = join('.', l[:i])
         ext = join('.', l[i:])
-        if ext: ext = '.' + ext
+        if ext:
+            ext = '.' + ext
         yield ("default%s.do" % ext), basename, ext
     
 
@@ -19,13 +20,13 @@ def _possible_do_files(t):
            '', filename, '')
 
     # It's important to try every possibility in a directory before resorting
-    # to a parent directory.  Think about nested projects: I don't want
+    # to a parent directory.  Think about nested projects: I ^don't want
     # ../../default.o.do to take precedence over ../default.do, because
     # the former one might just be an artifact of someone embedding my project
     # into theirs as a subdir.  When they do, my rules should still be used
     # for building my project in *all* cases.
     t = os.path.normpath(os.path.join(vars.BASE, t))
-    dirname,filename = os.path.split(t)
+    dirname, filename = os.path.split(t)
     dirbits = dirname.split('/')
     for i in range(len(dirbits), -1, -1):
         basedir = join('/', dirbits[:i])
@@ -36,15 +37,15 @@ def _possible_do_files(t):
         
 
 def _find_do_file(f):
-    for dodir,dofile,basedir,basename,ext in _possible_do_files(f.name):
+    for dodir, dofile, basedir, basename, ext in _possible_do_files(f.name):
         dopath = os.path.join(dodir, dofile)
         debug2('%s: %s:%s ?\n' % (f.name, dodir, dofile))
         if os.path.exists(dopath):
             f.add_dep('m', dopath)
-            return dodir,dofile,basedir,basename,ext
+            return dodir, dofile, basedir, basename, ext
         else:
             f.add_dep('c', dopath)
-    return None,None,None,None,None
+    return None, None, None, None, None
 
 
 def _nice(t):
@@ -74,8 +75,8 @@ class BuildJob:
         tmpbase = t
         while not os.path.isdir(os.path.dirname(tmpbase) or '.'):
             ofs = tmpbase.rfind('/')
-            assert(ofs >= 0)
-            tmpbase = tmpbase[:ofs] + '__' + tmpbase[ofs+1:]
+            assert ofs >= 0
+            tmpbase = tmpbase[:ofs] + '__' + tmpbase[ofs + 1:]
         self.tmpname1 = '%s.redo1.tmp' % tmpbase
         self.tmpname2 = '%s.redo2.tmp' % tmpbase
         self.lock = lock
@@ -84,22 +85,17 @@ class BuildJob:
         self.before_t = _try_stat(self.t)
 
     def start(self):
-        assert(self.lock.owned)
+        assert self.lock.owned
         try:
-            dirty = self.shouldbuildfunc(self.t)
-            if not dirty:
+            if not self.shouldbuildfunc(self.t):
                 # target doesn't need to be built; skip the whole task
                 return self._after2(0)
         except ImmediateReturn, e:
             return self._after2(e.rv)
-
-        if vars.NO_OOB or dirty == True:
-            self._start_do()
-        else:
-            self._start_unlocked(dirty)
+        self._start_do()
 
     def _start_do(self):
-        assert(self.lock.owned)
+        assert self.lock.owned
         t = self.t
         sf = self.sf
         newstamp = sf.read_stamp()
