@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import sys, os
-import vars, state
+import vars as vars_, state
 from log import err
 
 
 try:
-    me = os.path.join(vars.STARTDIR, 
-                      os.path.join(vars.PWD, vars.TARGET))
+    me = os.path.join(vars_.STARTDIR, vars_.PWD, vars_.TARGET)
     f = state.File(name=me)
     for t in sys.argv[1:]:
         if os.path.exists(t):

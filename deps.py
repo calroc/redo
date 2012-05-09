@@ -1,5 +1,5 @@
 import sys, os
-import vars, state, builder
+import vars as vars_, state, builder
 from log import debug
 
 CLEAN = 0
@@ -8,20 +8,20 @@ DIRTY = 1
 def isdirty(f, depth, max_changed,
             is_checked=state.File.is_checked,
             set_checked=state.File.set_checked_save):
-    if vars.DEBUG >= 1:
+    if vars_.DEBUG >= 1:
         debug('%s?%s\n' % (depth, f.nicename()))
 
     if f.failed_runid:
         debug('%s-- DIRTY (failed last time)\n' % depth)
         return DIRTY
-    if f.changed_runid == None:
+    if f.changed_runid is None:
         debug('%s-- DIRTY (never built)\n' % depth)
         return DIRTY
     if f.changed_runid > max_changed:
         debug('%s-- DIRTY (built)\n' % depth)
         return DIRTY  # has been built more recently than parent
     if is_checked(f):
-        if vars.DEBUG >= 1:
+        if vars_.DEBUG >= 1:
             debug('%s-- CLEAN (checked)\n' % depth)
         return CLEAN  # has already been checked during this session
     if not f.stamp:
@@ -43,7 +43,7 @@ def isdirty(f, depth, max_changed,
     for mode,f2 in f.deps():
         dirty = CLEAN
         if mode == 'c':
-            if os.path.exists(os.path.join(vars.BASE, f2.name)):
+            if os.path.exists(os.path.join(vars_.BASE, f2.name)):
                 debug('%s-- DIRTY (created)\n' % depth)
                 dirty = DIRTY
         elif mode == 'm':

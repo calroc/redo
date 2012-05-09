@@ -4,7 +4,7 @@ import sys, os
 import vars_init
 vars_init.init(sys.argv[1:])
 
-import vars, state, builder, jwack, deps
+import vars as vars_, state, builder, jwack, deps
 from helpers import unlink
 from log import debug, debug2, err
 
@@ -12,17 +12,16 @@ def should_build(t):
     f = state.File(name=t)
     if f.is_failed():
         raise builder.ImmediateReturn(32)
-    dirty = deps.isdirty(f, depth = '', max_changed = vars.RUNID)
-    return dirty==[f] and deps.DIRTY or dirty
+    dirty = deps.isdirty(f, depth='', max_changed=vars_.RUNID)
+    return dirty == [f] and deps.DIRTY or dirty
 
 
 rv = 202
 try:
-    if vars.TARGET and not vars.UNLOCKED:
-        me = os.path.join(vars.STARTDIR, 
-                          os.path.join(vars.PWD, vars.TARGET))
+    if vars_.TARGET and not vars_.UNLOCKED:
+        me = os.path.join(vars_.STARTDIR, vars_.PWD, vars_.TARGET)
         f = state.File(name=me)
-        debug2('TARGET: %r %r %r\n' % (vars.STARTDIR, vars.PWD, vars.TARGET))
+        debug2('TARGET: %r %r %r\n' % (vars_.STARTDIR, vars_.PWD, vars_.TARGET))
     else:
         f = me = None
         debug2('redo-ifchange: not adding depends.\n')

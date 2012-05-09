@@ -3,15 +3,14 @@ import sys, os
 import state
 from log import err
 
-if len(sys.argv[1:]) < 2:
+if len(sys.argv[:]) < 3:
     err('%s: at least 2 arguments expected.\n' % sys.argv[0])
     sys.exit(1)
 
 target = sys.argv[1]
 deps = sys.argv[2:]
 
-for d in deps:
-    assert(d != target)
+assert not any(d == target for d in deps)
 
 me = state.File(name=target)
 
