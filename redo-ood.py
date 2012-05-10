@@ -12,17 +12,19 @@ if len(sys.argv) != 1:
     sys.exit(1)
 
 
-cache = {}
-
-def is_checked(f):
-    return cache.get(f.id, 0)
-
-def set_checked(f):
-    cache[f.id] = 1
+def make_cache():
+    _ = {}
+    def is_checked(f):
+        return _.get(f.id, 0)
+    def set_checked(f):
+        _[f.id] = 1
+    cache = locals().copy()
+    del cache['_']
+    return cache
 
 
 for f in state.files():
     if (f.is_generated and
         f.read_stamp() != state.STAMP_MISSING and
-        f.is_dirty(vars_.RUNID, is_checked=is_checked, set_checked=set_checked):
+        f.is_dirty(vars_.RUNID, **make_cache())):
         print f.nicename()
