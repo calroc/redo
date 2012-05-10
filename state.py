@@ -1,7 +1,7 @@
 import sys, os, errno, glob, stat, fcntl, sqlite3
 import vars as vars_
 from helpers import unlink, close_on_exec, join
-from log import warn, err, debug2, debug3
+from log import warn, err, debug, debug2, debug3
 
 SCHEMA_VER=1
 TIMEOUT=60
@@ -10,6 +10,8 @@ ALWAYS='//ALWAYS'   # an invalid filename that is always marked as dirty
 STAMP_DIR='dir'     # the stamp of a directory; mtime is unhelpful
 STAMP_MISSING='0'   # the stamp of a nonexistent file
 
+CLEAN = 0
+DIRTY = 1
 
 def _connect(dbfile):
     _db = sqlite3.connect(dbfile, timeout=TIMEOUT)
@@ -130,10 +132,8 @@ def relpath(t, base):
             break
         tparts.pop(0)
         bparts.pop(0)
-    while bparts:
-        tparts.insert(0, '..')
-        bparts.pop(0)
-    return join('/', tparts)
+    tparts = ['..'] * len(bparts) + tparts
+    return tparts and os.path.join(*tparts) or ''
 
 
 def warn_override(name):
@@ -286,6 +286,93 @@ class File(object):
 
     def nicename(self):
         return relpath(os.path.join(vars_.BASE, self.name), vars_.STARTDIR)
+
+    def is_dirty(self, max_changed, depth='',
+                 is_checked=None, set_checked=None):
+        is_checked = is_checked or File.is_checked
+        set_checked = set_checked or File.set_checked_save
+        if vars_.DEBUG >= 1:
+            debug('%s?%s\n' % (depth, self.nicename()))
+
+        if self.failed_runid:
+            debug('%s-- DIRTY (failed last time)\n' % depth)
+            return DIRTY
+        if self.changed_runid is None:
+            debug('%s-- DIRTY (never built)\n' % depth)
+            return DIRTY
+        if self.changed_runid > max_changed:
+            debug('%s-- DIRTY (built)\n' % depth)
+            return DIRTY  # has been built more recently than parent
+        if is_checked(self):
+            if vars_.DEBUG >= 1:
+                debug('%s-- CLEAN (checked)\n' % depth)
+            return CLEAN  # has already been checked during this session
+        if not self.stamp:
+            debug('%s-- DIRTY (no stamp)\n' % depth)
+            return DIRTY
+
+        newstamp = self.read_stamp()
+        if self.stamp != newstamp:
+            if newstamp == STAMP_MISSING:
+                debug('%s-- DIRTY (missing)\n' % depth)
+            else:
+                debug('%s-- DIRTY (mtime)\n' % depth)
+            if self.csum:
+                return [self]
+            else:
+                return DIRTY
+
+        must_build = []
+        for mode, f2 in self.deps():
+            assert mode in ('c', 'm')
+            dirty = CLEAN
+            if mode == 'c':
+                if os.path.exists(os.path.join(vars_.BASE, f2.name)):
+                    debug('%s-- DIRTY (created)\n' % depth)
+                    dirty = DIRTY
+            elif mode == 'm':
+                sub = f2.is_dirty(max(self.changed_runid, self.checked_runid),
+                                 depth=depth + '  ',
+                                 is_checked=is_checked, set_checked=set_checked)
+                if sub:
+                    debug('%s-- DIRTY (sub)\n' % depth)
+                    dirty = sub
+
+            if not self.csum:
+                # self is a "normal" target:
+                # dirty f2 means self is instantly dirty
+                if dirty:
+                    # if dirty==DIRTY, this means self is definitely dirty.
+                    # if dirty==[...], it's a list of the uncertain children.
+                    return dirty
+            else:
+                # self is "checksummable": dirty f2 means self needs to redo,
+                # but self might turn out to be clean after that (ie. our
+                # parent might not be dirty).
+                if dirty == DIRTY:
+                    # f2 is definitely dirty, so self definitely needs to
+                    # redo.  However, after that, self might turn out to be
+                    # unchanged.
+                    return [self]
+
+                # our child f2 might be dirty, but it's not sure yet.  It's
+                # given us a list of targets we have to redo in order to
+                # be sure.
+                assert isinstance(dirty, list)
+                must_build.extend(dirty)
+
+        if must_build:
+            # self is *maybe* dirty because at least one of its children is
+            # maybe dirty.  must_build has accumulated a list of "topmost"
+            # uncertain objects in the tree.  If we build all those, we can then
+            # redo-ifchange self and it won't have any uncertainty next time.
+            return must_build
+
+        # if we get here, it's because the target is clean
+        if self.is_override:
+            warn_override(self.name)
+        set_checked(self)
+        return CLEAN
 
 
 def files():

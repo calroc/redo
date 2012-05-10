@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-import sys, os
+import sys
 
 import vars_init
 vars_init.init([])
 
-import vars, state, deps
+import vars as vars_, state
 from log import err
 
-if len(sys.argv[1:]) != 0:
+if len(sys.argv) != 1:
     err('%s: no arguments expected.\n' % sys.argv[0])
     sys.exit(1)
 
@@ -22,7 +22,7 @@ def set_checked(f):
 
 
 for f in state.files():
-    if f.is_generated and f.read_stamp() != state.STAMP_MISSING:
-        if deps.isdirty(f, depth='', max_changed=vars.RUNID,
-                        is_checked=is_checked, set_checked=set_checked):
-            print f.nicename()
+    if (f.is_generated and
+        f.read_stamp() != state.STAMP_MISSING and
+        f.is_dirty(vars_.RUNID, is_checked=is_checked, set_checked=set_checked):
+        print f.nicename()

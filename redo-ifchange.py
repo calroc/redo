@@ -4,7 +4,7 @@ import sys, os
 import vars_init
 vars_init.init(sys.argv[1:])
 
-import vars as vars_, state, builder, jwack, deps
+import vars as vars_, state, builder, jwack
 from helpers import unlink
 from log import debug, debug2, err
 
@@ -12,8 +12,8 @@ def should_build(t):
     f = state.File(name=t)
     if f.is_failed():
         raise builder.ImmediateReturn(32)
-    dirty = deps.isdirty(f, depth='', max_changed=vars_.RUNID)
-    return dirty == [f] and deps.DIRTY or dirty
+    dirty = f.is_dirty(vars_.RUNID)
+    return dirty == [f] and state.DIRTY or dirty
 
 
 rv = 202
