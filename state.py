@@ -358,7 +358,7 @@ class File(object):
                 # our child f2 might be dirty, but it's not sure yet.  It's
                 # given us a list of targets we have to redo in order to
                 # be sure.
-                assert isinstance(dirty, list)
+                assert isinstance(dirty, list), repr(dirty)
                 must_build.extend(dirty)
 
         if must_build:
