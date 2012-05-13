@@ -70,8 +70,8 @@ class ImmediateReturn(Exception):
 
 class BuildJob:
     def __init__(self, sf, lock, shouldbuildfunc, donefunc):
-        self.t = tmpbase = sf.t # original target name, not relative to vars_.BASE
         self.sf = sf
+        tmpbase = sf.t # original target name, not relative to vars_.BASE
         while not os.path.isdir(os.path.dirname(tmpbase) or '.'):
             ofs = tmpbase.rfind('/')
             assert ofs >= 0
@@ -81,12 +81,12 @@ class BuildJob:
         self.lock = lock
         self.shouldbuildfunc = shouldbuildfunc
         self.donefunc = donefunc
-        self.before_t = _try_stat(self.t)
+        self.before_t = _try_stat(sf.t)
 
     def start(self):
         assert self.lock.owned
         try:
-            if not self.shouldbuildfunc(self.t):
+            if not self.shouldbuildfunc(self.sf.t):
                 # target doesn't need to be built; skip the whole task
                 return self._after2(0)
         except ImmediateReturn, e:
@@ -95,7 +95,7 @@ class BuildJob:
 
     def _start_do(self):
         assert self.lock.owned
-        t = self.t
+        t = self.sf.t
         sf = self.sf
         newstamp = sf.read_stamp()
         if (sf.is_generated and
@@ -190,15 +190,17 @@ class BuildJob:
         # returns only if there's an exception
 
     def _after(self, t, rv):
+        assert t == self.sf.t, repr((t, self.sf.t))
         try:
             state.check_sane()
-            rv = self._after1(t, rv)
+            rv = self._after1(rv)
             state.commit()
         finally:
             self._after2(rv)
 
-    def _after1(self, t, rv):
+    def _after1(self, rv):
         f = self.f
+        t = self.sf.t
         before_t = self.before_t
         after_t = _try_stat(t)
         st1 = os.fstat(f.fileno())
@@ -259,7 +261,7 @@ class BuildJob:
 
     def _after2(self, rv):
         try:
-            self.donefunc(self.t, rv)
+            self.donefunc(self.sf.t, rv)
             assert(self.lock.owned)
         finally:
             self.lock.unlock()
