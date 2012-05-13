@@ -1,6 +1,6 @@
 import sys, os, errno, glob, stat, fcntl, sqlite3
 import vars as vars_
-from helpers import unlink, close_on_exec, join, try_stat
+from helpers import unlink, close_on_exec, join, try_stat, possible_do_files
 from log import log, warn, err, debug, debug2, debug3
 
 SCHEMA_VER=1
@@ -220,6 +220,8 @@ class File(object):
         self.update_stamp()
         self.failed_runid = vars_.RUNID
         self.is_generated = True
+        self.zap_deps2()
+        self.save()
 
     def set_static(self):
         self.update_stamp(must_exist=True)
@@ -300,13 +302,13 @@ class File(object):
     def try_stat(self):
         return try_stat(self.t)
 
-    def something(self):
+    def check_externally_modified(self):
         newstamp = self.read_stamp()
         return (self.is_generated and
                 newstamp != STAMP_MISSING and
                 (self.stamp != newstamp or self.is_override))
 
-    def set_something(self):
+    def set_externally_modified(self):
         self.set_override()
         self.set_checked()
         self.save()
@@ -319,6 +321,16 @@ class File(object):
     def set_something_else(self):
         self.set_static()
         self.save()
+
+    def find_do_file(self):
+        for dodir, dofile, basedir, basename, ext in possible_do_files(self.name, vars_.BASE):
+            dopath = os.path.join(dodir, dofile)
+            debug2('%s: %s:%s ?\n' % (self.name, dodir, dofile))
+            if os.path.exists(dopath):
+                self.add_dep('m', dopath)
+                return dodir, dofile, basedir, basename, ext
+            self.add_dep('c', dopath)
+        return None, None, None, None, None
 
     def is_dirty(self, max_changed, depth='',
                  is_checked=None, set_checked=None):
@@ -406,6 +418,21 @@ class File(object):
             warn_override(self.name)
         set_checked(self)
         return CLEAN
+
+    def fin(self):
+        self.refresh()
+        self.is_generated = True
+        self.is_override = False
+        if self.is_checked() or self.is_changed():
+            # it got checked during the run; someone ran redo-stamp.
+            # update_stamp would call set_changed(); we don't want that
+            self.stamp = self.read_stamp()
+        else:
+            self.csum = None
+            self.update_stamp()
+            self.set_changed()
+        self.zap_deps2()
+        self.save()
 
 
 def files():
