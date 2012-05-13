@@ -69,10 +69,9 @@ class ImmediateReturn(Exception):
 
 
 class BuildJob:
-    def __init__(self, t, sf, lock, shouldbuildfunc, donefunc):
-        self.t = t  # original target name, not relative to vars_.BASE
+    def __init__(self, sf, lock, shouldbuildfunc, donefunc):
+        self.t = tmpbase = sf.t # original target name, not relative to vars_.BASE
         self.sf = sf
-        tmpbase = t
         while not os.path.isdir(os.path.dirname(tmpbase) or '.'):
             ofs = tmpbase.rfind('/')
             assert ofs >= 0
@@ -296,6 +295,7 @@ def main(targets, shouldbuildfunc):
             retcode[0] = 205
             break
         f = state.File(name=t)
+        assert t == f.t, repr((t, f.t))
         lock = state.Lock(f.id)
         if vars_.UNLOCKED:
             lock.owned = True
@@ -306,7 +306,7 @@ def main(targets, shouldbuildfunc):
                 log('%s (locked...)\n' % _nice(t))
             locked.append((f.id,t))
         else:
-            BuildJob(t, f, lock, shouldbuildfunc, done).start()
+            BuildJob(f, lock, shouldbuildfunc, done).start()
 
     del lock
 
@@ -352,7 +352,7 @@ def main(targets, shouldbuildfunc):
                 retcode[0] = 2
                 lock.unlock()
             else:
-                BuildJob(t, state.File(id=fid), lock,
+                BuildJob(state.File(id=fid), lock,
                          shouldbuildfunc, done).start()
     state.commit()
     return retcode[0]
