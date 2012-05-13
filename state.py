@@ -1,6 +1,6 @@
 import sys, os, errno, glob, stat, fcntl, sqlite3
 import vars as vars_
-from helpers import unlink, close_on_exec, join
+from helpers import unlink, close_on_exec, join, try_stat
 from log import log, warn, err, debug, debug2, debug3
 
 SCHEMA_VER=1
@@ -288,6 +288,17 @@ class File(object):
 
     def nicename(self):
         return relpath(os.path.join(vars_.BASE, self.name), vars_.STARTDIR)
+
+    def get_tempfilenames(self):
+        tmpbase = self.t
+        while not os.path.isdir(os.path.dirname(tmpbase) or '.'):
+            ofs = tmpbase.rfind('/')
+            assert ofs >= 0
+            tmpbase = tmpbase[:ofs] + '__' + tmpbase[ofs + 1:]
+        return ('%s.redo1.tmp' % tmpbase), ('%s.redo2.tmp' % tmpbase)
+
+    def try_stat(self):
+        return try_stat(self.t)
 
     def is_dirty(self, max_changed, depth='',
                  is_checked=None, set_checked=None):

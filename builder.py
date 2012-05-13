@@ -1,6 +1,6 @@
 import sys, os, errno, stat
 import vars as vars_, jwack, state
-from helpers import unlink, close_on_exec, join
+from helpers import unlink, close_on_exec, join, try_stat
 from log import log, log_, debug, debug2, err, warn
 
 
@@ -52,16 +52,6 @@ def _nice(t):
     return state.relpath(t, vars_.STARTDIR)
 
 
-def _try_stat(filename):
-    try:
-        return os.stat(filename)
-    except OSError, e:
-        if e.errno == errno.ENOENT:
-            return None
-        else:
-            raise
-
-
 class ImmediateReturn(Exception):
     def __init__(self, rv):
         Exception.__init__(self, "immediate return with exit code %d" % rv)
@@ -71,17 +61,11 @@ class ImmediateReturn(Exception):
 class BuildJob:
     def __init__(self, sf, lock, shouldbuildfunc, donefunc):
         self.sf = sf
-        tmpbase = sf.t # original target name, not relative to vars_.BASE
-        while not os.path.isdir(os.path.dirname(tmpbase) or '.'):
-            ofs = tmpbase.rfind('/')
-            assert ofs >= 0
-            tmpbase = tmpbase[:ofs] + '__' + tmpbase[ofs + 1:]
-        self.tmpname1 = '%s.redo1.tmp' % tmpbase
-        self.tmpname2 = '%s.redo2.tmp' % tmpbase
+        self.tmpname1, self.tmpname2 = sf.get_tempfilenames()
         self.lock = lock
         self.shouldbuildfunc = shouldbuildfunc
         self.donefunc = donefunc
-        self.before_t = _try_stat(sf.t)
+        self.before_t = sf.try_stat()
 
     def start(self):
         assert self.lock.owned
@@ -202,9 +186,9 @@ class BuildJob:
         f = self.f
         t = self.sf.t
         before_t = self.before_t
-        after_t = _try_stat(t)
+        after_t = self.sf.try_stat()
         st1 = os.fstat(f.fileno())
-        st2 = _try_stat(self.tmpname2)
+        st2 = try_stat(self.tmpname2)
         if (after_t and 
             (not before_t or before_t.st_ctime != after_t.st_ctime) and
             not stat.S_ISDIR(after_t.st_mode)):

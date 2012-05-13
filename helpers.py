@@ -27,3 +27,13 @@ def close_on_exec(fd, yes):
     fcntl.fcntl(fd, fcntl.F_SETFD, fl)
 
 
+def try_stat(filename):
+    try:
+        return os.stat(filename)
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            return None
+        else:
+            raise
+
+
