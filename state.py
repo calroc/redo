@@ -300,6 +300,26 @@ class File(object):
     def try_stat(self):
         return try_stat(self.t)
 
+    def something(self):
+        newstamp = self.read_stamp()
+        return (self.is_generated and
+                newstamp != STAMP_MISSING and
+                (self.stamp != newstamp or self.is_override))
+
+    def set_something(self):
+        self.set_override()
+        self.set_checked()
+        self.save()
+
+    def existing_not_generated(self):
+        return (os.path.exists(self.t) and
+                not os.path.isdir(self.t + '/.') and
+                not self.is_generated)
+
+    def set_something_else(self):
+        self.set_static()
+        self.save()
+
     def is_dirty(self, max_changed, depth='',
                  is_checked=None, set_checked=None):
         is_checked = is_checked or File.is_checked
